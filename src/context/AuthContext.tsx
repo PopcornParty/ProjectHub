@@ -1,12 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase, siteUrl } from "@/lib/supabase";
-import { fetchProfileById } from "@/services/profiles";
+import { beginDiscordLogin, captureDiscordTokenFromHash, clearToken, discordAvatarUrl, fetchDiscordMe, getStoredToken } from "@/lib/discord";
+import { upsertProfileFromDiscord } from "@/lib/db";
 import type { Profile } from "@/types";
+import { fetchProfileById } from "@/services/profiles";
 
 type AuthState = {
-  session: Session | null;
-  user: User | null;
+  session: { access: string } | null;
+  user: { id: string } | null;
   profile: Profile | null;
   loading: boolean;
   signInWithDiscord: () => Promise<void>;
@@ -17,66 +17,56 @@ type AuthState = {
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadProfile = async (userId?: string) => {
-    if (!userId) {
+  const hydrate = async () => {
+    captureDiscordTokenFromHash();
+    const stored = getStoredToken();
+    setToken(stored);
+    if (!stored) {
       setProfile(null);
+      setLoading(false);
       return;
     }
-    try {
-      await supabase.rpc("sync_discord_identity");
-    } catch {
-      // identity sync is best-effort
+    const me = await fetchDiscordMe(stored);
+    if (!me) {
+      setProfile(null);
+      setLoading(false);
+      return;
     }
-    const p = await fetchProfileById(userId);
-    setProfile(p);
+    const saved = upsertProfileFromDiscord({
+      ...me,
+      avatarUrl: discordAvatarUrl(me.id, me.avatar),
+    });
+    setProfile(fetchProfileById(saved.id) || saved);
+    setLoading(false);
   };
 
   useEffect(() => {
-    let mounted = true;
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-      setSession(data.session);
-      loadProfile(data.session?.user.id).finally(() => mounted && setLoading(false));
-    });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
-      loadProfile(next?.user.id);
-    });
-    return () => {
-      mounted = false;
-      sub.subscription.unsubscribe();
-    };
+    hydrate();
   }, []);
 
   const value = useMemo<AuthState>(
     () => ({
-      session,
-      user: session?.user ?? null,
+      session: token ? { access: token } : null,
+      user: profile ? { id: profile.id } : null,
       profile,
       loading,
       signInWithDiscord: async () => {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "discord",
-          options: {
-            scopes: "identify",
-            redirectTo: `${siteUrl}/auth/callback`,
-          },
-        });
-        if (error) throw new Error("Could not start Discord sign-in. Please try again.");
+        beginDiscordLogin();
       },
       signOut: async () => {
-        await supabase.auth.signOut();
+        clearToken();
+        setToken(null);
         setProfile(null);
       },
       refreshProfile: async () => {
-        if (session?.user.id) await loadProfile(session.user.id);
+        if (profile) setProfile(fetchProfileById(profile.id));
       },
     }),
-    [session, profile, loading]
+    [token, profile, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
