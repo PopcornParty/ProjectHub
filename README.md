@@ -2,154 +2,46 @@
 
 **Find people. Build projects.**
 
-ProjectHub helps people find teammates for Minecraft servers, Discord bots, websites, games, YouTube channels and other creative or technical projects. Accounts use Discord. There is no in-app inbox — people contact each other on Discord.
+This version uses **only a Discord application**. There is no Supabase and no extra website account.
 
-This app is built to run on **free tiers**:
+Owner Discord ID (hardcoded): `1438172505423478916`
 
-- Frontend: React + TypeScript + Vite + Tailwind
-- Database + auth: [Supabase](https://supabase.com) (free project)
-- Hosting: [Vercel](https://vercel.com) or Cloudflare Pages
+## What you set up
 
-## 1. Create free accounts
-
-1. A [GitHub](https://github.com) account
-2. A [Supabase](https://supabase.com) account
-3. A [Discord](https://discord.com/developers/applications) developer application
-4. A [Vercel](https://vercel.com) account (recommended hosting)
-
-## 2. Create the database
-
-1. In Supabase, click **New project**.
-2. Open **SQL Editor**.
-3. Paste and run `supabase/schema.sql`.
-4. Paste and run `supabase/seed.sql`.
-
-## 3. Configure Discord OAuth
-
-1. Open [Discord Developer Portal](https://discord.com/developers/applications) → New Application → **OAuth2**.
-2. Copy the **Client ID** and **Client Secret**.
-3. In Supabase go to **Authentication → Providers → Discord**.
-4. Enable Discord.
-5. Paste the Client ID and Client Secret.
-6. Add these redirect URLs in **both** Discord and Supabase:
-
-Local:
+1. Create a Discord application at https://discord.com/developers/applications
+2. Copy the **Application ID** (Client ID)
+3. Paste it into `src/lib/config.ts` as `DISCORD_CLIENT_ID`
+4. In Discord OAuth2 → Redirects add:
 
 ```
 http://localhost:5173/auth/callback
+https://popcornparty.github.io/ProjectHub/auth/callback
 ```
 
-Production (replace with your Vercel domain):
+5. Enable GitHub Pages for this repo (Settings → Pages → GitHub Actions)
 
-```
-https://YOUR-DOMAIN.vercel.app/auth/callback
-```
+That is the whole setup.
 
-Supabase also shows its own callback URL (`https://YOUR_PROJECT.supabase.co/auth/v1/callback`). Add that exact URL to the Discord application redirect list.
-
-Scopes used: `identify` only.
-
-## 4. Environment variables
-
-Copy `.env.example` to `.env.local`:
-
-```bash
-cp .env.example .env.local
-```
-
-Fill in:
-
-```
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=your_anon_key
-VITE_SITE_URL=http://localhost:5173
-```
-
-Get the URL and anon key from Supabase **Project Settings → API**.
-
-Never put the Supabase **service role** key in this frontend. Never commit `.env.local`.
-
-## 5. Run locally
+## Run locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173
+Sign in with Discord. If your Discord user ID is `1438172505423478916`, you are the owner and can open `/admin`.
 
-## 6. Deploy (Vercel, free)
+## How login works
 
-1. Push this repo to GitHub.
-2. Import the repo in Vercel.
-3. Add environment variables:
+The site uses Discord **implicit OAuth** (`identify` only). No client secret is stored in the project.
 
-```
-VITE_SUPABASE_URL
-VITE_SUPABASE_ANON_KEY
-VITE_SITE_URL=https://YOUR-DOMAIN.vercel.app
-```
+## Data
 
-4. Deploy.
-5. Add the production `/auth/callback` URL to Discord and Supabase as in step 3.
+Profiles and projects are stored in this browser (localStorage).
+That means the site works without a database account. Other people on other computers will not automatically see the same listings unless they use the same browser profile.
 
-Cloudflare Pages also works: build command `npm run build`, output directory `dist`, same env vars.
+## Live site from this repo
 
-## 7. Set the owner account
+Push to `main`. The GitHub Action builds the app to GitHub Pages:
 
-Your Discord user ID is a snowflake (Developer Mode → right click your Discord profile → Copy User ID).
-
-In the Supabase SQL editor run:
-
-```sql
-insert into public.platform_config (key, value)
-values ('owner_discord_id', 'YOUR_DISCORD_USER_ID')
-on conflict (key) do update set value = excluded.value, updated_at = now();
-```
-
-Then sign in to ProjectHub with that Discord account. A database trigger assigns the `owner` role. The frontend cannot spoof this.
-
-If you already signed in once, sign out and back in, or run:
-
-```sql
-update public.profiles
-set role = 'owner'
-where discord_id = 'YOUR_DISCORD_USER_ID';
-```
-
-## 8. Production OAuth redirect
-
-After the first deploy, confirm Discord OAuth2 redirects include:
-
-- `https://YOUR_PROJECT.supabase.co/auth/v1/callback`
-- `https://YOUR-DOMAIN.vercel.app/auth/callback`
-
-## Safety
-
-ProjectHub is designed for younger builders:
-
-- No internal DMs
-- Age ranges instead of birthdays
-- Block + report
-- Basic filters against emails / phone numbers in text fields
-- Public profiles never show emails
-
-## Project layout
-
-```
-src/components    reusable UI
-src/pages         routes
-src/layouts       shell
-src/lib           supabase, matching, validation
-src/services      data access
-src/context       auth + toasts
-supabase/         schema + catalog seed
-```
-
-## Scripts
-
-```bash
-npm run dev
-npm run build
-npm run preview
-```
+https://popcornparty.github.io/ProjectHub/
