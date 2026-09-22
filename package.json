@@ -1,0 +1,31 @@
+{
+  "name": "projecthub",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Find people. Build projects.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "lint": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.47.10",
+    "lucide-react": "^0.468.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/node": "^22.10.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3"
+  }
+}
