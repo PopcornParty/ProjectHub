@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import { validateTextField } from "@/lib/validation";
 import type { ReportReason } from "@/types";
 
@@ -12,21 +12,25 @@ export async function submitReport(input: {
 }) {
   const err = validateTextField("Details", input.details, { max: 500 });
   if (err) throw new Error(err);
-  const { error } = await supabase.from("reports").insert({
+  const data = db.get();
+  data.reports.unshift({
+    id: crypto.randomUUID(),
     reporter_id: input.reporterId,
     target_type: input.targetType,
     target_profile_id: input.targetProfileId ?? null,
     target_project_id: input.targetProjectId ?? null,
     reason: input.reason,
     details: input.details.trim(),
+    status: "open",
+    admin_notes: "",
+    resolved_by: null,
+    created_at: new Date().toISOString(),
+    resolved_at: null,
   });
-  if (error) throw new Error("Could not send this report. Please try again.");
+  db.save(data);
 }
 
 export async function listReports(status?: string) {
-  let q = supabase.from("reports").select("*").order("created_at", { ascending: false }).limit(200);
-  if (status) q = q.eq("status", status);
-  const { data, error } = await q;
-  if (error) throw error;
-  return data ?? [];
+  const rows = db.get().reports;
+  return status ? rows.filter((r) => r.status === status) : rows;
 }

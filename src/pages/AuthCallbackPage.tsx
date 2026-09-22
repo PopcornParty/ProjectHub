@@ -1,27 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { captureDiscordTokenFromHash } from "@/lib/discord";
 
 export function AuthCallbackPage() {
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
-    supabase.auth
-      .getSession()
-      .then(({ data, error: err }) => {
-        if (err || !data.session) {
-          setError("Sign-in did not finish. Please try again.");
-          return;
-        }
-        navigate("/dashboard", { replace: true });
-      })
-      .catch(() => setError("Sign-in did not finish. Please try again."));
+    captureDiscordTokenFromHash();
+    navigate("/dashboard", { replace: true });
   }, [navigate]);
-
   return (
     <div className="py-20 text-center">
-      <p className="font-display text-xl">{error ?? "Finishing Discord sign-in…"}</p>
+      <p className="font-display text-xl">Finishing Discord sign-in…</p>
     </div>
   );
 }

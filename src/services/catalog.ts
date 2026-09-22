@@ -1,30 +1,23 @@
-import { supabase } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import type { Category, Skill, Tag } from "@/types";
 
 export async function fetchCategories() {
-  const { data, error } = await supabase
-    .from("categories")
-    .select("*")
-    .eq("is_active", true)
-    .order("sort_order");
-  if (error) throw error;
-  return (data ?? []) as Category[];
+  return db.get().categories.filter((c) => c.is_active) as Category[];
 }
 
 export async function fetchSkills() {
-  const { data, error } = await supabase.from("skills").select("*").eq("is_active", true).order("name");
-  if (error) throw error;
-  return (data ?? []) as Skill[];
+  return db.get().skills.filter((s) => s.is_active) as Skill[];
 }
 
 export async function fetchTags() {
-  const { data, error } = await supabase.from("tags").select("*").order("name");
-  if (error) throw error;
-  return (data ?? []) as Tag[];
+  return db.get().tags as Tag[];
 }
 
 export async function fetchStats() {
-  const { data, error } = await supabase.rpc("platform_stats");
-  if (error) return { users: 0, projects: 0, recruiting: 0 };
-  return data as { users: number; projects: number; recruiting: number };
+  const data = db.get();
+  return {
+    users: data.profiles.filter((p) => p.status === "active" && p.is_public).length,
+    projects: data.projects.filter((p) => !p.is_hidden).length,
+    recruiting: data.projects.filter((p) => !p.is_hidden && p.status === "recruiting").length,
+  };
 }
