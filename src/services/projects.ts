@@ -96,9 +96,18 @@ export async function updateProject(projectId: string, input: Parameters<typeof 
     description: input.description.trim(),
     category_id: input.category_id,
     status: input.status,
+    team_size_current: input.team_size_current,
+    team_size_max: input.team_size_max,
     discord_contact: input.discord_contact || null,
     updated_at: new Date().toISOString(),
   });
+  db.save(data);
+}
+
+export async function deleteProject(id: string) {
+  const data = db.get();
+  data.projects = data.projects.filter((p) => p.id !== id);
+  data.saved = data.saved.filter((s) => s.projectId !== id);
   db.save(data);
 }
 
