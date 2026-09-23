@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea, Select } from "@/components/ui/Input";
-import { createProject, fetchProjectBySlug, updateProject } from "@/services/projects";
+import { createProject, deleteProject, fetchProjectBySlug, updateProject } from "@/services/projects";
 import { fetchCategories } from "@/services/catalog";
 import type { Category } from "@/types";
 
@@ -16,6 +16,8 @@ export function ProjectFormPage() {
   const [description, setDescription] = useState("");
   const [category_id, setCategory] = useState("");
   const [status, setStatus] = useState("recruiting");
+  const [teamCurrent, setTeamCurrent] = useState(1);
+  const [teamMax, setTeamMax] = useState(4);
   const [error, setError] = useState<string | null>(null);
   const [id, setId] = useState<string | null>(null);
 
@@ -29,6 +31,8 @@ export function ProjectFormPage() {
       setDescription(p.description);
       setCategory(p.category_id || "");
       setStatus(p.status);
+      setTeamCurrent(p.team_size_current || 1);
+      setTeamMax(p.team_size_max || 4);
     });
   }, [slug]);
 
@@ -36,10 +40,10 @@ export function ProjectFormPage() {
     return <Button onClick={() => void signInWithDiscord()}>Sign in with Discord</Button>;
   }
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-    const payload = {
+  function payload() {
+    const current = Math.max(1, Number(teamCurrent) || 1);
+    const max = Math.max(current, Number(teamMax) || current);
+    return {
       ownerId: user.id,
       name,
       description,
@@ -50,24 +54,36 @@ export function ProjectFormPage() {
       time_commitment: "casual",
       platform: "",
       roles_needed: ["Teammates"],
-      team_size_current: 1,
-      team_size_max: 8,
+      team_size_current: current,
+      team_size_max: max,
       discord_contact: profile.discord_username || "",
       links: [] as { label: string; url: string }[],
       skillIds: [] as string[],
       tagNames: [] as string[],
     };
+  }
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
     try {
       if (id) {
-        await updateProject(id, payload);
+        await updateProject(id, payload());
         navigate(`/project/${slug}`);
       } else {
-        const created = await createProject(payload);
+        const created = await createProject(payload());
         navigate(`/project/${created.slug}`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save project");
     }
+  }
+
+  async function onDelete() {
+    if (!id) return;
+    if (!confirm("Delete this project? This cannot be undone.")) return;
+    await deleteProject(id);
+    navigate("/dashboard");
   }
 
   return (
@@ -90,8 +106,21 @@ export function ProjectFormPage() {
           <option value="completed">Completed</option>
         </Select>
       </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="People you have now" hint="Include yourself">
+          <Input type="number" min={1} max={50} value={teamCurrent} onChange={(e) => setTeamCurrent(Number(e.target.value))} />
+        </Field>
+        <Field label="People you want in total">
+          <Input type="number" min={1} max={50} value={teamMax} onChange={(e) => setTeamMax(Number(e.target.value))} />
+        </Field>
+      </div>
       {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-      <Button type="submit">Save project</Button>
+      <Button type="submit">{id ? "Save changes" : "Create project"}</Button>
+      {id ? (
+        <Button type="button" variant="danger" className="w-full" onClick={() => void onDelete()}>
+          Delete project
+        </Button>
+      ) : null}
     </form>
   );
 }
